@@ -161,14 +161,18 @@ user: "1: https://mp.weixin.qq.com/s/...
 agent: [写入 images.json 各项的 link_url 字段]
 ```
 
-fill 阶段会检查每个 link_url，**拒绝下列 placeholder**：
-- 空值、null
+fill 阶段会检查每个 link_url，**拒绝下列 placeholder**（仅当 link_url 非空时）：
 - 含 "placeholder" / "TBD" / "TODO" / "YOUR_URL" / "example.com" 字样
 - 公众号主页 URL（仅含 `__biz=` 没有 `mid=`/`idx=`/`sn=`/`/s/<token>`）
 - `/s/<token>` 中 token 看起来是测试值（连续重复字符如 `1111`、连续递增如 `abcd`/`1234`、字符种类过少）
 
-如果用户当下没有真实 URL，**留空**或先标记 owner 为 user，让用户后续手动填。**绝不能用任何"测试 URL"凑数**——会导致：
-- 立即 fill 阻断（如果含明显测试模式）
+**留空 = 故意不要链接（合规）**：
+- 如果用户当下没有真实 URL，把对应项的 `link_url` 设为 `null` 即可
+- fill 会跳过校验，渲染为不带 `<a>` 包装的纯 `<img>`
+- 公众号后台只校验"有链接的图"，纯图不校验，可以正常保存
+
+**绝不能**用任何"测试 URL"凑数：
+- 立即被 fill 阻断（如果含明显测试模式）
 - 即使逃过 fill 检查，**保存到公众号后台时会报"请勿插入不合法的图文消息链接"**——因为公众号会校验链接指向的推文是否真实存在
 
 ### 阶段 5：准备图 → fill

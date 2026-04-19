@@ -404,11 +404,11 @@ def fill(out_dir: Path) -> dict:
                         )
             except Exception:
                 pass
-        # header 必须有合法 link_url
-        if it and it.get("type") == "header_banner":
+        # header 的 link_url：填了就校验合法；留空 = 故意不带链接（合规）
+        if it and it.get("type") == "header_banner" and it.get("link_url"):
             ok, reason = _is_valid_link(it.get("link_url"), pid)
             if not ok:
-                missing.append(f"  - {pid} (版头): {reason} —— agent 必须主动向用户索取真实跳转 URL")
+                missing.append(f"  - {pid} (版头): {reason} —— agent 必须主动向用户索取真实跳转 URL，或留空走纯图")
 
     # 同时检查 grid 的特殊占位（IMG_GRID_N + GRID_URL_N）；引导动图改用 ![[IMG:guide-N]] 走通用通道
     grid_url_placeholders = re.findall(r"GRID_URL_(\d+)", md)
@@ -435,9 +435,11 @@ def fill(out_dir: Path) -> dict:
         if not it:
             missing.append(f"  - grid-{n}: images.json 里无此项")
             continue
-        ok, reason = _is_valid_link(it.get("link_url"), f"grid-{n}")
-        if not ok:
-            missing.append(f"  - grid-{n} (推文卡 {n}): {reason} —— agent 必须向用户索取真实推文 URL")
+        # link_url 留空 = 故意不带链接（公众号合规，渲染为纯图）；填了才校验合法
+        if it.get("link_url"):
+            ok, reason = _is_valid_link(it.get("link_url"), f"grid-{n}")
+            if not ok:
+                missing.append(f"  - grid-{n} (推文卡 {n}): {reason} —— agent 必须向用户索取真实推文 URL，或留空走纯图")
 
     if missing:
         raise SystemExit(
@@ -460,16 +462,25 @@ def fill(out_dir: Path) -> dict:
         return f'![{alt}]({file})'
     out_md = PLACEHOLDER_RE.sub(repl, md)
 
-    # 替换 IMG_GRID_N / GRID_URL_N（grid 内部专用占位符）
-    for n in set(img_grid_placeholders):
-        out_md = out_md.replace(f"IMG_GRID_{n}", items[f"grid-{n}"]["file"])
-    for n in set(grid_url_placeholders):
-        out_md = out_md.replace(f"GRID_URL_{n}", items[f"grid-{n}"]["link_url"])
+    # 替换 grid: [![alt](IMG_GRID_N)](GRID_URL_N)
+    # link_url 留空 → 剥掉外层 [...]() 包装变成纯 ![alt](file)
+    GRID_LINK_RE = re.compile(r"\[!\[([^\]]*)\]\(IMG_GRID_(\d+)\)\]\(GRID_URL_(\d+)\)")
 
-    # grid 标题用 grid-N 项的 grid_title 替换
-    for n in set(img_grid_placeholders):
-        title = items[f"grid-{n}"].get("grid_title") or f"推文{n}"
-        out_md = out_md.replace(f"过往推文{n}标题", title)
+    def grid_repl(m: re.Match) -> str:
+        alt = m.group(1)
+        n_img = m.group(2)
+        n_url = m.group(3)
+        it = items[f"grid-{n_img}"]
+        file = it["file"]
+        # grid_title 覆盖默认 alt
+        if it.get("grid_title"):
+            alt = it["grid_title"]
+        url = it.get("link_url")
+        if url:
+            return f'[![{alt}]({file})]({url})'
+        return f'![{alt}]({file})'
+
+    out_md = GRID_LINK_RE.sub(grid_repl, out_md)
 
     final_path = out_dir / "final.md"
     final_path.write_text(out_md, encoding="utf-8")
