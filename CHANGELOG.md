@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.4.0 (2026-04-20)
+
+### 新增
+
+- **`compress-gif` skill**：基于 gifsicle 的智能 GIF 压缩，多步降级（无损优化 → 减色 → 缩放 → 有损 → 抽帧）直到达标（默认 5MB 公众号上限）
+- 与 `text2md` / `md2wechat` 解耦，独立可用
+- 端到端验证：9.3MB GIF → 4.9MB（47% 减小，仅触发 step 1+2 减色，未走到缩放/抽帧，视觉损失最小）
+- 系统依赖：`brew install gifsicle` (macOS) / `apt-get install gifsicle` (Linux)
+
 ## v1.3.0 (2026-04-20)
 
 ### 新增

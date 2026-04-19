@@ -2,12 +2,13 @@
 
 > 让 [Hermes Agent](https://github.com/nousresearch/hermes-agent) 把一段纯文字稿排版成一键粘贴到微信公众号后台的精美 HTML
 
-由两个串联的 skill 组成：
+由两个串联的 skill + 一个辅助工具组成：
 
 | Skill | 角色 | 输入 | 输出 |
 |---|---|---|---|
 | **`text2md`** | 策划层（含 LLM 决策）| 纯文字稿 `.txt` | `draft.md` + `images.json` 配图清单 |
 | **`md2wechat`** | 渲染层（确定性脚本）| 标准 markdown | 含一键复制按钮的 HTML |
+| **`compress-gif`** | 辅助工具 | 超大 GIF | 智能压缩到 ≤5MB（公众号上限）|
 
 ```
 你的文字稿

@@ -51,7 +51,22 @@ pip3 install --user \
 
 如果用 `uv`/`poetry`：从上面包列表自取。
 
-## 5. 验证安装
+## 5. 装系统依赖（gifsicle，可选但推荐）
+
+`compress-gif` skill 用 [gifsicle](https://www.lcdf.org/gifsicle/) 压缩 GIF：
+
+```bash
+# macOS
+brew install gifsicle
+
+# Linux
+sudo apt-get install gifsicle  # Debian/Ubuntu
+sudo yum install gifsicle      # CentOS/RHEL
+```
+
+如果不装，仅 `compress-gif` skill 不可用，其他 skill 不受影响。
+
+## 6. 验证安装
 
 ```bash
 # 测 md2wechat
@@ -69,7 +84,7 @@ ls /tmp/_out
 
 两个命令都跑通就装好了。
 
-## 6. 常见问题
+## 7. 常见问题
 
 ### Q: `ModuleNotFoundError: No module named 'markdown_it'`
 
@@ -96,9 +111,14 @@ A: 打开浏览器 DevTools Console 看错误。常见原因：
 A: **粘贴到公众号编辑器的单图硬上限是 5MB**（PNG/JPG/GIF 都一样）。素材库上传可到 10MB，但粘贴通道只允许 5MB。`text2md fill` 现在会预检图片大小，超过 5MB 直接阻断。
 
 解决方法：
-1. 用 [ezgif.com](https://ezgif.com) / [squoosh.app](https://squoosh.app) 压缩到 5MB 以下
-2. GIF 减帧或缩短时长
-3. 实在不能压缩的大图，手工先上传到公众号素材库（支持 10MB），从素材库插入到正文
+1. **GIF 用 compress-gif skill 一键搞定**：
+   ```bash
+   python3 ~/.hermes/skills/compress-gif/scripts/compress.py <gif> -o <gif>
+   ```
+   多步降级到 5MB 以下，视觉损失最小
+2. PNG/JPG 用 [squoosh.app](https://squoosh.app) 压缩
+3. GIF 减帧或缩短时长（compress-gif 的 step 5 自动做）
+4. 实在不能压缩的大图，手工先上传到公众号素材库（支持 10MB），从素材库插入到正文
 
 ### Q: 拿不到推文 URL 怎么办？必须填吗？
 
