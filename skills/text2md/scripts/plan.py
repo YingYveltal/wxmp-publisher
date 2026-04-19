@@ -331,6 +331,8 @@ def _is_valid_link(url: str | None, item_id: str) -> tuple[bool, str]:
     - 形如 https://mp.weixin.qq.com/s?__biz=XXX== 但**没有** mid/idx/sn 参数
       （这是公众号主页 URL，通常不是单篇文章链接）
     - 含 'placeholder' / 'TBD' / 'TODO' / 'YOUR_URL' 字样
+    - mp.weixin.qq.com/s/<token> 中 token 看起来是连续重复字符 / 字母数字递增模式
+      （典型 placeholder：AbCd1111111111111 / abc123456789）
     """
     if not url:
         return False, "link_url 为空"
@@ -347,6 +349,21 @@ def _is_valid_link(url: str | None, item_id: str) -> tuple[bool, str]:
                 f"link_url 看起来是公众号主页 URL（缺 mid/idx/sn 参数），"
                 f"不是单篇推文链接: {url[:80]}"
             )
+        # 检查 /s/<token>: 真实 mp 推文 token 是 22 位混合字符串，
+        # 拒绝明显的 placeholder 模式（连续重复字符、递增序列）
+        m = re.search(r"/s/([A-Za-z0-9_\-]+)", url)
+        if m:
+            token = m.group(1)
+            if len(set(token)) < 5:
+                return False, f"link_url 的 token 重复字符过多，看起来是测试值: {url}"
+            # 含 4+ 连续相同字符（如 11111）
+            if re.search(r"(.)\1{3,}", token):
+                return False, f"link_url 的 token 含连续重复字符（如 11111），看起来是测试值: {url}"
+            # 含 4+ 连续递增字符（如 1234, abcd）
+            chars = list(token.lower())
+            for i in range(len(chars) - 3):
+                if all(ord(chars[i+j+1]) - ord(chars[i+j]) == 1 for j in range(3)):
+                    return False, f"link_url 的 token 含连续递增字符（如 1234/abcd），看起来是测试值: {url}"
     return True, ""
 
 
@@ -365,6 +382,7 @@ def fill(out_dir: Path) -> dict:
     md = draft_path.read_text(encoding="utf-8")
     placeholders = PLACEHOLDER_RE.findall(md)
     missing: list[str] = []
+    MAX_IMAGE_BYTES = 5 * 1024 * 1024  # 公众号粘贴单图硬上限
     for pid in set(placeholders):
         it = items.get(pid)
         if not it:
@@ -373,6 +391,19 @@ def fill(out_dir: Path) -> dict:
             missing.append(f"  - {pid} ({it['purpose']}): 缺 file 路径")
         elif it.get("status") != "ready":
             missing.append(f"  - {pid} ({it['purpose']}): status={it.get('status')}（需 ready）")
+        else:
+            # 大小预检：超过 5MB 公众号粘贴会失败
+            try:
+                fp = Path(it["file"]).expanduser()
+                if fp.exists():
+                    sz = fp.stat().st_size
+                    if sz > MAX_IMAGE_BYTES:
+                        missing.append(
+                            f"  - {pid} ({it['purpose']}): 图片 {fp.name} {sz/1024/1024:.1f}MB，"
+                            f"超过公众号粘贴 5MB 上限，必须压缩"
+                        )
+            except Exception:
+                pass
         # header 必须有合法 link_url
         if it and it.get("type") == "header_banner":
             ok, reason = _is_valid_link(it.get("link_url"), pid)
@@ -387,6 +418,18 @@ def fill(out_dir: Path) -> dict:
         it = items.get(f"grid-{n}")
         if not it or not it.get("file") or it.get("status") != "ready":
             missing.append(f"  - grid-{n}: 缺 file 或 status 非 ready")
+        else:
+            try:
+                fp = Path(it["file"]).expanduser()
+                if fp.exists():
+                    sz = fp.stat().st_size
+                    if sz > MAX_IMAGE_BYTES:
+                        missing.append(
+                            f"  - grid-{n}: 图片 {fp.name} {sz/1024/1024:.1f}MB，"
+                            f"超过公众号粘贴 5MB 上限，必须压缩"
+                        )
+            except Exception:
+                pass
     for n in set(grid_url_placeholders):
         it = items.get(f"grid-{n}")
         if not it:

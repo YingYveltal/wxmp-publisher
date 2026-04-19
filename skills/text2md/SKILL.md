@@ -165,8 +165,11 @@ fill 阶段会检查每个 link_url，**拒绝下列 placeholder**：
 - 空值、null
 - 含 "placeholder" / "TBD" / "TODO" / "YOUR_URL" / "example.com" 字样
 - 公众号主页 URL（仅含 `__biz=` 没有 `mid=`/`idx=`/`sn=`/`/s/<token>`）
+- `/s/<token>` 中 token 看起来是测试值（连续重复字符如 `1111`、连续递增如 `abcd`/`1234`、字符种类过少）
 
-如果用户当下没有真实 URL，**留空**或先标记 owner 为 user，让用户后续手动填。**绝不能用任何"测试 URL"凑数**——会导致最终文章里所有图片跳到错误页面。
+如果用户当下没有真实 URL，**留空**或先标记 owner 为 user，让用户后续手动填。**绝不能用任何"测试 URL"凑数**——会导致：
+- 立即 fill 阻断（如果含明显测试模式）
+- 即使逃过 fill 检查，**保存到公众号后台时会报"请勿插入不合法的图文消息链接"**——因为公众号会校验链接指向的推文是否真实存在
 
 ### 阶段 5：准备图 → fill
 
@@ -175,6 +178,8 @@ fill 阶段会检查每个 link_url，**拒绝下列 placeholder**：
 - `<workspace>/images/section-1-title.png`
 - `<workspace>/images/inline-1.png`
 - ...
+
+**⚠ 单图大小硬上限 5MB**：粘贴到公众号编辑器的图（PNG/JPG/GIF）必须 ≤ 5MB，否则保存时报"载入失败、来源信息无法识别"。素材库上传支持 10MB 但**粘贴通道**只允许 5MB。GIF 大于 5MB 必须先压缩（[ezgif.com](https://ezgif.com) / [squoosh.app](https://squoosh.app)）或减帧。fill 阶段会预检图片大小，超过 5MB 直接阻断。
 
 然后**更新 images.json**：
 - `file`: 改为图片绝对路径
