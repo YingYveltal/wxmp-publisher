@@ -1,0 +1,60 @@
+{
+  "name": "edwards",
+  "version": "3.0.0",
+  "description": "仿全明星街球派对：14px 黑字 + 1px 字间距 + 行高 2 + 22px 内边距 + 红字加粗强调。支持互动板块、图片网格、红色分割线。",
+  "source": {
+    "url": "https://mp.weixin.qq.com/s/ys2fsajufNCZcSbd_8fGaA",
+    "title": "率群狼，缓称王！爱德华兹：兑现三分天赋又何妨",
+    "author": "全明星街球派对"
+  },
+  "defaults": {
+    "title_h1": "fallback",
+    "title_h2": "fallback",
+    "title_h3": "fallback",
+    "quote": "default",
+    "divider": "default",
+    "caption": "default",
+    "body": "default"
+  },
+  "title_image": {
+    "wrapper_style": "margin: 24px 0 10px; text-align: center; line-height: 0;",
+    "img_style": "max-width: 100%; height: auto; display: inline-block;"
+  },
+  "image": {
+    "wrapper_style": "margin: 14px 0; text-align: center; line-height: 0;",
+    "img_style": "max-width: 100%; height: auto; display: inline-block; vertical-align: middle;"
+  },
+  "list": {
+    "ul_style": "margin: 6px 0 12px; padding-left: 22px;",
+    "ol_style": "margin: 6px 0 12px; padding-left: 22px;",
+    "li_style": "margin: 0 0 4px;"
+  },
+  "inline": {
+    "strong_style": "font-weight: bold; color: #222222;",
+    "mark_style": "color: #ba0808; font-weight: bold;",
+    "em_style": "color: #555555; font-style: italic;",
+    "code_style": "background: #f4f4f4; padding: 1px 6px; border-radius: 3px; font-family: Consolas, Monaco, monospace; font-size: 13px; color: #ba0808;",
+    "link_style": "color: #015fc2; text-decoration: none;"
+  },
+  "code_block_style": "margin: 12px 0; padding: 12px 14px; background: #2d2d2d; color: #f8f8f2; font-family: Consolas, Monaco, monospace; font-size: 13px; line-height: 1.6; border-radius: 4px; overflow-x: auto;",
+  "interact": {
+    "wrapper_style": "margin: 22px 0 16px; text-align: center; line-height: 1.9;",
+    "line_style": "color: #222; font-size: 14px;"
+  },
+  "banner": {
+    "max_width": "50%",
+    "wrapper_style": "margin: 18px 0 4px; text-align: center; line-height: 0;"
+  },
+  "grid": {
+    "gap": "8px",
+    "aspect": 2.3,
+    "title_style": "margin: 5px 0 0; text-align: center; font-size: 13px; color: #222; font-weight: bold;"
+  },
+  "red_divider": {
+    "color": "#ba0808"
+  },
+  "center": {
+    "wrapper_style": "margin: 14px 0; text-align: center;"
+  },
+  "article_wrapper_style": "font-size: 14px; color: #212121; letter-spacing: 1px; line-height: 2; padding: 0 22px; text-align: justify; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;"
+}

@@ -1,0 +1,23 @@
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+.idea/
+.vscode/
+*.swp
+.venv/
+venv/
+
+# 用户在使用时生成的中间产物（不应入仓）
+out/
+*.html
+*.draft.md
+*.final.md
+images/
+
+# 但保留 examples 里的 .md 示例文件
+!skills/*/examples/*.md
+!CHANGELOG.md
+!README.md
+!INSTALL.md
+!DEVELOPMENT.md
