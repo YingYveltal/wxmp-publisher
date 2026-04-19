@@ -10,18 +10,26 @@
 | **`md2wechat`** | 渲染层（确定性脚本）| 标准 markdown | 含一键复制按钮的 HTML |
 
 ```
-你的文字稿.txt
-   ↓ /text2md scaffold
+你的文字稿
+   ↓ /text2md new "<文章主题>"
+~/wxmp-articles/2026-04-20-<主题>/        ← 文章工作区（自动创建）
+├── source.txt                            ← 你/agent 写入文字稿
+├── images/                               ← 图素材
+└── ...
+
+   ↓ /text2md scaffold <workspace>/source.txt
 draft.md（含 ![[IMG:id]] 占位符）+ images.json（配图清单）
    ↓ agent 跟你对话分工：哪些图你准备 / 哪些 agent 准备
-   ↓ 各自把图存到 out/images/，回填 images.json 的 file/link_url
-   ↓ /text2md fill
+   ↓ 各自把图存到 <workspace>/images/，回填 images.json 的 file/link_url
+   ↓ /text2md fill <workspace>
 final.md（标准 markdown）
    ↓ /md2wechat
 final.html（含「📋 复制到公众号」按钮）
    ↓ 点按钮 → 公众号后台 Cmd/Ctrl+V
 完成 ✅
 ```
+
+**工作区根目录**默认 `~/wxmp-articles/`（首次自动创建），可通过环境变量 `WXMP_ARTICLES_DIR` 覆盖。每篇文章一个独立目录，所有素材集中、易归档。
 
 ## 当前内置主题
 
@@ -79,17 +87,23 @@ pip3 install --user markdown-it-py jinja2 mdit-py-plugins requests beautifulsoup
 ## 使用示例
 
 ```bash
-# 阶段 1：从文字稿生成骨架
-python3 ~/.hermes/skills/text2md/scripts/plan.py scaffold article.txt --out-dir out/
+# 阶段 0：创建工作区（自动检查/创建 ~/wxmp-articles/）
+python3 ~/.hermes/skills/text2md/scripts/plan.py new "edwards-蚁人超越加内特"
+# → 输出工作区路径，如 ~/wxmp-articles/2026-04-20-edwards-蚁人超越加内特/
 
-# 阶段 2：agent 读完文字稿后，自己在 draft.md 加 inline 占位符 + 给关键词加 ==红字== / **粗体**
-# 阶段 3：agent 跟用户对话分工，把每张图的 owner / file / link_url 写到 images.json
-# 阶段 4：填充
-python3 ~/.hermes/skills/text2md/scripts/plan.py fill out/
+# 阶段 1：把稿子写入工作区的 source.txt（用编辑器或 Write 工具）
 
-# 阶段 5：渲染
-python3 ~/.hermes/skills/md2wechat/scripts/render.py out/final.md
-# → 浏览器自动打开 out/final.html，点右上角「📋 复制到公众号」即可
+# 阶段 2：从文字稿生成骨架
+python3 ~/.hermes/skills/text2md/scripts/plan.py scaffold <workspace>/source.txt
+
+# 阶段 3：agent 读完文字稿后，自己在 draft.md 加 inline 占位符 + 给关键词加 ==红字== / **粗体**
+# 阶段 4：agent 跟用户对话分工，把每张图的 owner / file / link_url 写到 images.json
+# 阶段 5：填充
+python3 ~/.hermes/skills/text2md/scripts/plan.py fill <workspace>
+
+# 阶段 6：渲染
+python3 ~/.hermes/skills/md2wechat/scripts/render.py <workspace>/final.md
+# → 浏览器自动打开 final.html，点右上角「📋 复制到公众号」即可
 ```
 
 ## 文档

@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.1.0 (2026-04-20)
+
+### `text2md`
+
+- **新增 `new` 子命令**：一键创建文章工作区 `~/wxmp-articles/<YYYY-MM-DD>-<slug>/`，含 source.txt 占位 + images/ 空目录 + .layout 标识文件
+- **工作区合法性检查**：scaffold 和 fill 都强制检查 `.layout` 标识，不在合法工作区直接报错（防 agent 误操作）
+- `scaffold` 的 `--out-dir` 改为可选，缺省 = source.txt 所在目录
+- 工作区根目录可通过环境变量 `WXMP_ARTICLES_DIR` 覆盖（默认 `~/wxmp-articles/`）
+- 首次运行自动创建根目录并打印友好提示
+
+### 设计动机
+
+之前的工作流让 agent 自己决定中间文件存哪，容易散落多处导致后续命令找不到。强制工作区结构 + 标识文件检查彻底解决这个问题。
+
 ## v1.0.0 (2026-04-20)
 
 首个完整版本。

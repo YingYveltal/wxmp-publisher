@@ -1,37 +1,113 @@
 """text → 公众号 markdown draft + 配图清单。
 
-两个子命令：
-  scaffold <text.txt> --out-dir DIR
-    解析纯文字稿，生成基础骨架：
-      DIR/draft.md       含必有版尾结构 + ![[IMG:id]] 占位符
-      DIR/images.json    必有图项的清单（header/section_titles/footer 全套 + 用户备注栏）
-      DIR/images/        空目录，存图素材
+三个子命令：
+  new <name>                 创建文章工作区（强烈推荐用这个起步）
+    在 WXMP_ARTICLES_DIR (默认 ~/wxmp-articles/) 下创建 <YYYY-MM-DD>-<name>/，
+    含 source.txt 占位 + images/ 空目录 + .layout 标识文件。
+    首次运行会自动创建根目录。
+
+  scaffold <text.txt> [--out-dir DIR]
+    解析纯文字稿，生成基础骨架（draft.md + images.json + images/）。
+    --out-dir 缺省 = source.txt 所在目录（推荐配合 new 命令使用）。
+    检查 .layout 标识文件，不在合法工作区会报错（防 agent 误操作）。
 
   fill <DIR>
     读 DIR/images.json，用 owner 已 ready 的 file 路径替换 DIR/draft.md 的占位符。
     输出 DIR/final.md，可直接喂给 md2wechat。
 
-agent 工作流：
-  1. 调 scaffold 拿基础骨架
-  2. 读用户文字稿，自己决定要插哪些 inline 图
-     - 在 draft.md 适当位置插 ![[IMG:inline-N]]
-     - 在 images.json items 里追加 inline 项（含 description / owner）
-  3. 把 images.json 给用户对话分工，回写 owner 字段
-  4. 各自准备图存到 DIR/images/，把路径写到 file 字段，状态改 ready
-  5. 调 fill 出 final.md
-  6. 调 md2wechat 渲染
+agent 推荐工作流：
+  1. text2md new "<theme>-<topic>"   → 拿到工作区路径
+  2. 把用户稿子写入 <workspace>/source.txt
+  3. text2md scaffold <workspace>/source.txt
+  4. agent 读完稿子：在 draft.md 适当位置插 ![[IMG:inline-N]] + 给关键词加 ==红字== / **粗体**
+  5. 在 images.json items 追加 inline 项（含 description / owner）
+  6. 跟用户对话分工，回写 owner / link_url 等字段
+  7. 各方准备图，存到 <workspace>/images/，images.json 填 file + status=ready
+  8. text2md fill <workspace>
+  9. md2wechat render <workspace>/final.md
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 PLACEHOLDER_RE = re.compile(r"!\[\[IMG:([\w\-]+)\]\]")
+LAYOUT_MARKER = ".layout"  # 工作区合法性标识文件名
+DEFAULT_ROOT = Path.home() / "wxmp-articles"
+
+
+# ---------- 工作区管理 ----------
+
+def get_articles_root() -> Path:
+    """返回文章工作区根目录。优先环境变量 WXMP_ARTICLES_DIR。"""
+    env = os.environ.get("WXMP_ARTICLES_DIR")
+    return Path(env).expanduser().resolve() if env else DEFAULT_ROOT
+
+
+def ensure_root() -> Path:
+    """检查/创建根目录。首次创建时打印友好提示。"""
+    root = get_articles_root()
+    if not root.exists():
+        root.mkdir(parents=True, exist_ok=True)
+        print(f"[init] 已创建文章工作区根目录: {root}")
+        print(f"       今后所有文章工作区都会在这里。如需更改路径，设环境变量 WXMP_ARTICLES_DIR。")
+    return root
+
+
+def slugify(name: str) -> str:
+    """把任意字符串转成文件名安全的 slug：保留中文/字母/数字/-/_，其他换成 -。"""
+    s = re.sub(r"[\s/\\:*?\"<>|]+", "-", name.strip())
+    s = re.sub(r"-+", "-", s).strip("-")
+    return s or "untitled"
+
+
+def is_workspace(path: Path) -> bool:
+    """判断 path 是否是合法工作区（含 .layout 标识）。"""
+    return (path / LAYOUT_MARKER).is_file()
+
+
+def find_workspace(path: Path) -> Path | None:
+    """从 path 向上查找最近的合法工作区根。找不到返回 None。"""
+    p = path.resolve()
+    if p.is_file():
+        p = p.parent
+    while True:
+        if is_workspace(p):
+            return p
+        if p.parent == p:
+            return None
+        p = p.parent
+
+
+def cmd_new(name: str) -> dict:
+    """创建一个新工作区: <root>/<YYYY-MM-DD>-<slug>/"""
+    root = ensure_root()
+    today = datetime.now().strftime("%Y-%m-%d")
+    slug = slugify(name)
+    workspace = root / f"{today}-{slug}"
+    if workspace.exists():
+        # 同名已存在：加数字后缀
+        i = 2
+        while (root / f"{today}-{slug}-{i}").exists():
+            i += 1
+        workspace = root / f"{today}-{slug}-{i}"
+    workspace.mkdir(parents=True)
+    (workspace / "images").mkdir()
+    (workspace / LAYOUT_MARKER).write_text(
+        f"wxmp-publisher workspace\ncreated_at: {datetime.now(timezone.utc).isoformat()}\n",
+        encoding="utf-8",
+    )
+    (workspace / "source.txt").write_text(
+        "# 在这里粘贴/写入文字稿。\n# 用 markdown 标题语法切章节：\n#   一级章节用 # 标题\n#   二级用 ## 子标题\n# 段落用空行分隔。\n# 不要保留这几行注释。\n\n",
+        encoding="utf-8",
+    )
+    return {"workspace": str(workspace), "root": str(root)}
 
 
 # ---------- scaffold ----------
@@ -363,20 +439,53 @@ def main():
     ap = argparse.ArgumentParser(description="text → 公众号 markdown draft + 配图清单")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
+    n = sub.add_parser("new", help="创建文章工作区（推荐起步）")
+    n.add_argument("name", help="文章主题，会被转成 slug。例：'edwards-超越加内特'")
+
     s = sub.add_parser("scaffold", help="文字稿 → draft.md + images.json")
-    s.add_argument("text_path")
-    s.add_argument("--out-dir", "-o", required=True)
+    s.add_argument("text_path", help="source.txt 路径（通常在工作区里）")
+    s.add_argument("--out-dir", "-o", default=None,
+                   help="输出目录，缺省 = source.txt 所在目录（推荐配合 new 使用）")
 
     f = sub.add_parser("fill", help="占位符 → 真路径 → final.md")
-    f.add_argument("out_dir")
+    f.add_argument("out_dir", help="工作区目录")
 
     args = ap.parse_args()
 
-    if args.cmd == "scaffold":
+    if args.cmd == "new":
+        result = cmd_new(args.name)
+        ws = result["workspace"]
+        print(f"[ok] 工作区已创建: {ws}")
+        print(f"\n下一步：")
+        print(f"  1. 把文字稿写入 {ws}/source.txt（覆盖默认占位）")
+        print(f"  2. python3 {__file__} scaffold {ws}/source.txt")
+        print(f"  3. agent 读 draft.md 加 inline 占位 + 标关键词 + 写 images.json")
+        print(f"  4. 准备图存到 {ws}/images/")
+        print(f"  5. python3 {__file__} fill {ws}")
+        print(f"  6. python3 ~/.hermes/skills/md2wechat/scripts/render.py {ws}/final.md")
+
+    elif args.cmd == "scaffold":
         text_path = Path(args.text_path).expanduser().resolve()
-        out_dir = Path(args.out_dir).expanduser().resolve()
         if not text_path.exists():
             raise SystemExit(f"text 不存在: {text_path}")
+        # 默认 out-dir = source 所在目录
+        out_dir = Path(args.out_dir).expanduser().resolve() if args.out_dir else text_path.parent
+        # 检查工作区合法性
+        ws = find_workspace(out_dir)
+        if ws is None:
+            root = get_articles_root()
+            raise SystemExit(
+                f"[scaffold] 不在合法工作区！\n"
+                f"  当前 out-dir: {out_dir}\n"
+                f"  没有找到 .layout 标识文件。\n\n"
+                f"请先用 new 命令创建工作区：\n"
+                f"  python3 {__file__} new \"<文章主题>\"\n\n"
+                f"或在已有工作区下放置 source.txt 后再跑 scaffold。\n"
+                f"工作区根目录默认在 {root}，可通过 WXMP_ARTICLES_DIR 覆盖。"
+            )
+        if ws != out_dir:
+            print(f"[info] 检测到工作区: {ws}（out-dir 自动用此）")
+            out_dir = ws
         result = scaffold(text_path, out_dir)
         print(f"[ok] scaffold:")
         print(f"  draft:  {result['draft_md']}")
@@ -387,9 +496,19 @@ def main():
         print(f"  1. agent 读 {result['draft_md']}，决定要插 inline 配图，往 images.json 追加 inline 项 + 在 draft 里插 ![[IMG:<id>]]")
         print(f"  2. agent 与用户对话分工，回写 images.json 的 owner 字段")
         print(f"  3. 准备好图存到 {result['images_dir']}/，在 images.json 里填 file 路径并把 status 改 ready")
-        print(f"  4. python3 {__file__} fill {result['draft_md'].rsplit('/', 1)[0]}")
+        print(f"  4. python3 {__file__} fill {out_dir}")
+
     elif args.cmd == "fill":
         out_dir = Path(args.out_dir).expanduser().resolve()
+        # 检查工作区合法性
+        if not is_workspace(out_dir):
+            ws = find_workspace(out_dir)
+            if ws is None:
+                raise SystemExit(
+                    f"[fill] 不是合法工作区: {out_dir}\n"
+                    f"缺少 .layout 标识文件。请确认路径，或用 new 命令创建。"
+                )
+            out_dir = ws
         result = fill(out_dir)
         print(f"[ok] final.md 已生成: {result['final_md']} ({result['replaced']} 个占位符替换)")
         print(f"下一步: python3 ~/.hermes/skills/md2wechat/scripts/render.py {result['final_md']}")
